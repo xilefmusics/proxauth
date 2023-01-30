@@ -7,18 +7,20 @@ import (
 	"proxauth/login"
 	"proxauth/rule"
 	"strconv"
+	"time"
 
 	"github.com/go-yaml/yaml"
 )
 
 type Config struct {
-	Users        []login.User `json:"users" yaml:"users"`
-	Rules        []rule.Rule  `json:"rules" yaml:"rules"`
-	ServerSecret []byte       `json:"serverSecret yaml:"serverSecret"`
-	Port         int          `json:"port" yaml:"port"`
+	Users                 []login.User  `json:"users" yaml:"users"`
+	Rules                 []rule.Rule   `json:"rules" yaml:"rules"`
+	ServerSecret          []byte        `json:"serverSecret yaml:"serverSecret"`
+	Port                  int           `json:"port" yaml:"port"`
+	JWTExpirationDuration time.Duration `json:"jwtExpirationDuration" yaml:"jwtExpirationDuration"`
 }
 
-func getEnv() (string, string, int) {
+func getEnv() (string, string, int, time.Duration) {
 	configFile := os.Getenv("CONFIG_FILE")
 	if len(configFile) == 0 {
 		log.Println("WARNING: ENV CONFIG_FILE is not set. Use default \"../config/config.yaml\".")
@@ -37,11 +39,17 @@ func getEnv() (string, string, int) {
 		port = 8081
 	}
 
-	return configFile, serverSecret, port
+	jwtExpirationDuration, err := time.ParseDuration(os.Getenv("JWT_EXPIRATION_DURATION"))
+	if err != nil {
+		log.Println("WARNING: ENV JWT_EXPIRATION_DURATION is not set. Use default \"24h\".")
+		jwtExpirationDuration, _ = time.ParseDuration("24h")
+	}
+
+	return configFile, serverSecret, port, jwtExpirationDuration
 }
 
 func Load() (*Config, error) {
-	configFile, serverSecret, port := getEnv()
+	configFile, serverSecret, port, jwtExpirationDuration := getEnv()
 
 	file, err := os.Open(configFile)
 	if err != nil {
@@ -62,6 +70,7 @@ func Load() (*Config, error) {
 
 	config.ServerSecret = []byte(serverSecret)
 	config.Port = port
+	config.JWTExpirationDuration = jwtExpirationDuration
 
 	return &config, nil
 }
