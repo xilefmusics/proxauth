@@ -75,10 +75,10 @@ func Authenticate(users []User, r *http.Request) (string, error) {
 	return user.Username, nil
 }
 
-func CreateJWT(username string, serverSecret []byte) (string, error) {
+func CreateJWT(username string, serverSecret []byte, expirationDuration time.Duration) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["exp"] = time.Now().UTC().Add(10 * time.Hour).Unix()
+	claims["exp"] = time.Now().UTC().Add(expirationDuration).Unix()
 	claims["user"] = username
 	return token.SignedString(serverSecret)
 }

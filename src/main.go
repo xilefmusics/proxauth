@@ -15,9 +15,6 @@ import (
 var Config *config.Config
 
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
-	// TODO: proper handling
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
 	rule := rule.Match(Config.Rules, r.URL.Host, r.URL.Path)
 	if rule == nil {
 		log.Printf("ERROR: No rule found for host=\"%s\" path=\"%s\"", r.URL.Host, r.URL.Path)
@@ -30,14 +27,14 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	if rule.LoginRequired() {
 
 		if rule.LoginPath == rule.RewritePath(r.URL.Path) {
-			username, err := login.Authenticate(Config.Users, r) // Users is empty
+			username, err := login.Authenticate(Config.Users, r)
 			if err != nil {
 				log.Printf("ERROR: Login Failed! (%s)", err.Error())
 				http.Error(w, "Login failed!", http.StatusUnauthorized)
 				return
 			}
 
-			token, err := login.CreateJWT(username, Config.ServerSecret)
+			token, err := login.CreateJWT(username, Config.ServerSecret, Config.JWTExpirationDuration)
 			if err != nil {
 				log.Printf("ERROR: Login Failed! (%s)", err.Error())
 				http.Error(w, "Login Failed!", http.StatusUnauthorized)
