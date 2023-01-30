@@ -1,11 +1,12 @@
 package login
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 
@@ -25,12 +26,19 @@ func ValidataUser(users []User, checkUser User) bool {
 			user = &u
 		}
 	}
+
 	if user == nil {
-		log.Println("user not found")
 		return false
 	}
 
-	// TODO: Check password
+	hasher := sha256.New()
+	hasher.Write([]byte(checkUser.Password))
+	hasher.Write([]byte(user.Salt))
+	hash := hex.EncodeToString(hasher.Sum(nil))
+
+	if hash != user.Password {
+		return false
+	}
 
 	return true
 }
