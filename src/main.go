@@ -28,50 +28,18 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("INFO: Handle Request method=%s clientHost=%s fromHost=%s fromPath=%s toHost=%s:%d toPath=%s", r.Method, r.RemoteAddr, r.URL.Host, r.URL.Path, rule.ToHost, rule.ToPort, rule.ToPath)
 
-	if rule.LoginRequired() {
+	if rule.LoginRequired() && rule.IsLoginPath(r.URL.Path) && r.Method == "POST" {
+		HandleLoginPOST(w, r)
+		return
+	}
 
-		if rule.LoginPath == rule.RewritePath(r.URL.Path) {
-			if r.Method == "POST" {
-				HandleLoginPOST(w, r)
-				return
-			}
-			if r.Method == "GET" {
-				HandleLoginGET(w, r)
-				return
-			}
-		}
+	if rule.LoginRequired() && rule.IsLoginPath(r.URL.Path) && r.Method == "GET" {
+		HandleLoginGET(w, r)
+		return
+	}
 
-		cookie, err := r.Cookie("proxauth-jwt-token")
-		if err != nil {
-			if rule.RedirectToLogin {
-				r.URL.Query().Add("hello", "world")
-				http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
-				return
-			}
-			http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-			log.Printf("ERROR: Authentication failed! (not exactly one token given)")
-			return
-		}
-
-		username, err := login.VerifyJWT(cookie.Value, Config.ServerSecret)
-		if err != nil {
-			if rule.RedirectToLogin {
-				http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
-				return
-			}
-			http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-			log.Printf("ERROR: Authentication failed! (%s)", err.Error())
-			return
-		}
-
-		if !rule.IsUserPermitted(username) {
-			http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-			log.Printf("ERROR: Authentication failed! (user is not permitted)")
-			return
-		}
-
-		r.Header.Del("X-Remote-User")
-		r.Header.Set("X-Remote-User", username)
+	if rule.LoginRequired() && HandleCheckLogin(w, r, rule) {
+		return
 	}
 
 	rule.RewriteRequest(r)
@@ -79,7 +47,6 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
-		fmt.Println("Hello World")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -88,6 +55,41 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
 
+}
+
+func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) bool {
+	cookie, err := r.Cookie("proxauth-jwt-token")
+	if err != nil {
+		if rule.RedirectToLogin {
+			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+			return true
+		}
+		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
+		log.Printf("ERROR: Authentication failed! (not exactly one token given)")
+		return true
+	}
+
+	username, err := login.VerifyJWT(cookie.Value, Config.ServerSecret)
+	if err != nil {
+		if rule.RedirectToLogin {
+			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+			return true
+		}
+		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
+		log.Printf("ERROR: Authentication failed! (%s)", err.Error())
+		return true
+	}
+
+	if !rule.IsUserPermitted(username) {
+		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
+		log.Printf("ERROR: Authentication failed! (user is not permitted)")
+		return true
+	}
+
+	r.Header.Del("X-Remote-User")
+	r.Header.Set("X-Remote-User", username)
+
+	return false
 }
 
 func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {

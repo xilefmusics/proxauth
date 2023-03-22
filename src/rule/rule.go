@@ -21,6 +21,10 @@ type Rule struct {
 	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
 }
 
+func (self *Rule) IsLoginPath(path string) bool {
+	return self.RewritePath(path) == self.LoginPath
+}
+
 func (self *Rule) Match(fromHost, fromPath string) bool {
 	return (self.FromHost == fromHost || self.FromHost == "*") && strings.HasPrefix(fromPath, self.FromPath)
 }
