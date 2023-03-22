@@ -7,14 +7,18 @@ import (
 )
 
 type Rule struct {
-	FromHost     string   `json:"fromHost" yaml:"fromHost"`
-	FromPath     string   `json:"fromPath" yaml:"fromPath"`
-	ToScheme     string   `json:"toScheme" yaml:"toScheme"`
-	ToHost       string   `json:"toHost" yaml:"toHost"`
-	ToPort       int      `json:"toPort" yaml:"toPort"`
-	ToPath       string   `json:"toPath" yaml:"toPath"`
-	LoginPath    string   `json:"loginPath" yaml:"loginPath"`
-	AllowedUsers []string `json:"allowedUsers" yaml:"allowedUsers"`
+	// TODO set defaults
+	// TODO Differentiate between API and User page
+	// TODO URL tools
+	FromHost        string   `json:"fromHost" yaml:"fromHost"`
+	FromPath        string   `json:"fromPath" yaml:"fromPath"`
+	ToScheme        string   `json:"toScheme" yaml:"toScheme"`
+	ToHost          string   `json:"toHost" yaml:"toHost"`
+	ToPort          int      `json:"toPort" yaml:"toPort"`
+	ToPath          string   `json:"toPath" yaml:"toPath"`
+	LoginPath       string   `json:"loginPath" yaml:"loginPath"`
+	AllowedUsers    []string `json:"allowedUsers" yaml:"allowedUsers"`
+	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
 }
 
 func (self *Rule) Match(fromHost, fromPath string) bool {
@@ -44,6 +48,10 @@ func (self *Rule) RewriteRequest(r *http.Request) {
 	r.URL.Host = fmt.Sprintf("%s:%d", self.ToHost, self.ToPort)
 	r.URL.Path = self.RewritePath(r.URL.Path)
 	r.RequestURI = ""
+}
+
+func (self *Rule) GenLoginUrl(host string) string {
+	return fmt.Sprintf("%s%s", host, self.LoginPath)
 }
 
 func Match(rules []Rule, fromHost, fromPath string) *Rule {

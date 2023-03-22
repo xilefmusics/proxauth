@@ -6,6 +6,9 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
+
+	"github.com/gobuffalo/packr/v2"
 
 	"proxauth/config"
 	"proxauth/login"
@@ -13,6 +16,7 @@ import (
 )
 
 var Config *config.Config
+var Html *packr.Box
 
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	rule := rule.Match(Config.Rules, r.URL.Host, r.URL.Path)
@@ -27,40 +31,34 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	if rule.LoginRequired() {
 
 		if rule.LoginPath == rule.RewritePath(r.URL.Path) {
-			username, err := login.Authenticate(Config.Users, r)
-			if err != nil {
-				log.Printf("ERROR: Login Failed! (%s)", err.Error())
-				http.Error(w, "Login failed!", http.StatusUnauthorized)
+			if r.Method == "POST" {
+				HandleLoginPOST(w, r)
 				return
 			}
-
-			token, err := login.CreateJWT(username, Config.ServerSecret, Config.JWTExpirationDuration)
-			if err != nil {
-				log.Printf("ERROR: Login Failed! (%s)", err.Error())
-				http.Error(w, "Login Failed!", http.StatusUnauthorized)
+			if r.Method == "GET" {
+				HandleLoginGET(w, r)
 				return
 			}
-
-			json, err := json.Marshal(token)
-			if err != nil {
-				log.Printf("ERROR: Login Failed! (%s)", err.Error())
-				http.Error(w, "Login Failed!", http.StatusUnauthorized)
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			w.Write(json)
-			return
 		}
 
-		if len(r.Header["Token"]) != 1 {
+		cookie, err := r.Cookie("proxauth-jwt-token")
+		if err != nil {
+			if rule.RedirectToLogin {
+				r.URL.Query().Add("hello", "world")
+				http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+				return
+			}
 			http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
 			log.Printf("ERROR: Authentication failed! (not exactly one token given)")
 			return
 		}
 
-		username, err := login.VerifyJWT(r.Header["Token"][0], Config.ServerSecret)
+		username, err := login.VerifyJWT(cookie.Value, Config.ServerSecret)
 		if err != nil {
+			if rule.RedirectToLogin {
+				http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+				return
+			}
 			http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
 			log.Printf("ERROR: Authentication failed! (%s)", err.Error())
 			return
@@ -72,9 +70,8 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		r.Header.Del("user")
-		r.Header.Set("user", username)
-
+		r.Header.Del("X-Remote-User")
+		r.Header.Set("X-Remote-User", username)
 	}
 
 	rule.RewriteRequest(r)
@@ -82,6 +79,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
+		fmt.Println("Hello World")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -92,12 +90,52 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
+	username, err := login.Authenticate(Config.Users, r)
+	if err != nil {
+		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		http.Error(w, "Login failed!", http.StatusUnauthorized)
+		return
+	}
+
+	expiration := time.Now().UTC().Add(Config.JWTExpirationDuration)
+
+	token, err := login.CreateJWT(username, Config.ServerSecret, expiration.Unix())
+	if err != nil {
+		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		http.Error(w, "Login Failed!", http.StatusUnauthorized)
+		return
+	}
+
+	json, err := json.Marshal(token)
+	if err != nil {
+		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		http.Error(w, "Login Failed!", http.StatusUnauthorized)
+		return
+	}
+
+	cookie := http.Cookie{Name: "proxauth-jwt-token", Value: token, Expires: expiration}
+	http.SetCookie(w, &cookie)
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(json)
+}
+
+func HandleLoginGET(w http.ResponseWriter, r *http.Request) {
+	s, _ := Html.FindString("login.html")
+	w.Write([]byte(s))
+	return
+}
+
 func main() {
 	c, err := config.Load()
 	if err != nil {
 		log.Fatalf("ERROR: Loading config (%s)", err)
 	}
 	Config = c
+
+	h := packr.New("html", "./html")
+	Html = h
 
 	http.HandleFunc("/", HandleRequest)
 	log.Fatalf("ERROR: Listening (%s)", http.ListenAndServe(fmt.Sprintf(":%d", Config.Port), nil))

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 )
@@ -75,10 +74,10 @@ func Authenticate(users []User, r *http.Request) (string, error) {
 	return user.Username, nil
 }
 
-func CreateJWT(username string, serverSecret []byte, expirationDuration time.Duration) (string, error) {
+func CreateJWT(username string, serverSecret []byte, expiration int64) (string, error) {
 	token := jwt.New(jwt.SigningMethodHS256)
 	claims := token.Claims.(jwt.MapClaims)
-	claims["exp"] = time.Now().UTC().Add(expirationDuration).Unix()
+	claims["exp"] = expiration
 	claims["user"] = username
 	return token.SignedString(serverSecret)
 }
