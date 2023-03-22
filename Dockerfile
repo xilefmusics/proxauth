@@ -6,6 +6,7 @@ RUN go get . && CGO_ENABLED=0 go install
 FROM scratch
 COPY --from=Builder /go/bin/proxauth /
 
+ENV CONFIG = ""
 ENV CONFIG_FILE = "/config/config.yaml"
 ENV SERVER_SECRET="changeMe"
 ENV PORT="8080"

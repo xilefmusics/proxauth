@@ -20,7 +20,12 @@ type Config struct {
 	JWTExpirationDuration time.Duration `json:"jwtExpirationDuration" yaml:"jwtExpirationDuration"`
 }
 
-func getEnv() (string, string, int, time.Duration) {
+func getEnv() (string, string, string, int, time.Duration) {
+	config := os.Getenv("CONFIG")
+	if len(config) != 0 {
+		log.Println("INFO: ENV CONFIG is set. Ignore ENV CONFIG_FILE.")
+	}
+
 	configFile := os.Getenv("CONFIG_FILE")
 	if len(configFile) == 0 {
 		log.Println("WARNING: ENV CONFIG_FILE is not set. Use default \"../config/config.yaml\".")
@@ -45,25 +50,30 @@ func getEnv() (string, string, int, time.Duration) {
 		jwtExpirationDuration, _ = time.ParseDuration("24h")
 	}
 
-	return configFile, serverSecret, port, jwtExpirationDuration
+	return config, configFile, serverSecret, port, jwtExpirationDuration
 }
 
 func Load() (*Config, error) {
-	configFile, serverSecret, port, jwtExpirationDuration := getEnv()
+	configString, configFile, serverSecret, port, jwtExpirationDuration := getEnv()
 
-	file, err := os.Open(configFile)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
+	var bytes []byte
+	if len(configString) > 0 {
+		bytes = []byte(configString)
+	} else {
+		file, err := os.Open(configFile)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
 
-	bytes, err := ioutil.ReadAll(file)
-	if err != nil {
-		return nil, err
+		bytes, err = ioutil.ReadAll(file)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	var config Config
-	err = yaml.Unmarshal(bytes, &config)
+	err := yaml.Unmarshal(bytes, &config)
 	if err != nil {
 		return nil, err
 	}
