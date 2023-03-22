@@ -17,12 +17,17 @@ type Rule struct {
 	ToPort          int      `json:"toPort" yaml:"toPort"`
 	ToPath          string   `json:"toPath" yaml:"toPath"`
 	LoginPath       string   `json:"loginPath" yaml:"loginPath"`
+	LogoutPath      string   `json:"logoutPath" yaml:"logoutPath"`
 	AllowedUsers    []string `json:"allowedUsers" yaml:"allowedUsers"`
 	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
 }
 
 func (self *Rule) IsLoginPath(path string) bool {
 	return self.RewritePath(path) == self.LoginPath
+}
+
+func (self *Rule) IsLogoutPath(path string) bool {
+	return self.RewritePath(path) == self.LogoutPath
 }
 
 func (self *Rule) Match(fromHost, fromPath string) bool {

@@ -38,6 +38,11 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if rule.LoginRequired() && rule.IsLogoutPath(r.URL.Path) && r.Method == "GET" {
+		HandleLogoutGET(w, r, rule)
+		return
+	}
+
 	if rule.LoginRequired() && HandleCheckLogin(w, r, rule) {
 		return
 	}
@@ -105,14 +110,14 @@ func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
 	token, err := login.CreateJWT(username, Config.ServerSecret, expiration.Unix())
 	if err != nil {
 		log.Printf("ERROR: Login Failed! (%s)", err.Error())
-		http.Error(w, "Login Failed!", http.StatusUnauthorized)
+		http.Error(w, "Login Failed!", http.StatusInternalServerError)
 		return
 	}
 
 	json, err := json.Marshal(token)
 	if err != nil {
 		log.Printf("ERROR: Login Failed! (%s)", err.Error())
-		http.Error(w, "Login Failed!", http.StatusUnauthorized)
+		http.Error(w, "Login Failed!", http.StatusInternalServerError)
 		return
 	}
 
@@ -121,6 +126,12 @@ func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(json)
+}
+
+func HandleLogoutGET(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
+	cookie := http.Cookie{Name: "proxauth-jwt-token", Value: "", Expires: time.Unix(0, 0)}
+	http.SetCookie(w, &cookie)
+	http.Redirect(w, r, rule.GenLoginUrl(r.URL.Host), http.StatusSeeOther)
 }
 
 func HandleLoginGET(w http.ResponseWriter, r *http.Request) {
