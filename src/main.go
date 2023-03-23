@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"log"
 	"net/http"
@@ -19,10 +20,13 @@ var Config *config.Config
 var Html *packr.Box
 
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
+	// TODO Error Page
+	// TODO Check if API or not
+	// TODO Pretty login page
 	r.URL.Host = r.Host
 	rule := rule.Match(Config.Rules, r.URL.Host, r.URL.Path)
 	if rule == nil {
-		log.Printf("ERROR: No rule found for host=\"%s\" path=\"%s\"", r.URL.Host, r.URL.Path)
+		log.Printf("ERROR: For %s: No rule found for host=\"%s\" path=\"%s\"", r.URL.String(), r.URL.Host, r.URL.Path)
 		http.Error(w, "404 Not found", http.StatusNotFound)
 		return
 	}
@@ -34,7 +38,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if rule.LoginRequired() && rule.IsLoginPath(r.URL.Path) && r.Method == "GET" {
-		HandleLoginGET(w, r)
+		HandleLoginGET(w, r, rule)
 		return
 	}
 
@@ -58,6 +62,7 @@ func Forward(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
 	client := &http.Client{}
 	resp, err := client.Do(r)
 	if err != nil {
+		log.Printf("ERROR: For %s: The forwarding didn't work (%s)", r.URL.String(), err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +82,7 @@ func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) b
 			return true
 		}
 		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-		log.Printf("ERROR: Authentication failed! (not exactly one token given)")
+		log.Printf("ERROR: For %s: Authentication failed! (not exactly one token given)", r.URL.String())
 		return true
 	}
 
@@ -89,13 +94,13 @@ func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) b
 			return true
 		}
 		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-		log.Printf("ERROR: Authentication failed! (%s)", err.Error())
+		log.Printf("ERROR: For %s: Authentication failed! (%s)", r.URL.String(), err.Error())
 		return true
 	}
 
 	if !rule.IsUserPermitted(username) {
 		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
-		log.Printf("ERROR: Authentication failed! (user is not permitted)")
+		log.Printf("ERROR: For %s: Authentication failed! (user is not permitted)", r.URL.String())
 		return true
 	}
 
@@ -108,7 +113,7 @@ func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) b
 func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
 	username, err := login.Authenticate(Config.Users, r)
 	if err != nil {
-		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		log.Printf("ERROR: For %s: Login Failed! (%s)", r.URL.String(), err.Error())
 		http.Error(w, "Login failed!", http.StatusUnauthorized)
 		return
 	}
@@ -117,14 +122,14 @@ func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
 
 	token, err := login.CreateJWT(username, Config.ServerSecret, expiration.Unix())
 	if err != nil {
-		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		log.Printf("ERROR: For %s: Login Failed! (%s)", r.URL.String(), err.Error())
 		http.Error(w, "Login Failed!", http.StatusInternalServerError)
 		return
 	}
 
 	json, err := json.Marshal(token)
 	if err != nil {
-		log.Printf("ERROR: Login Failed! (%s)", err.Error())
+		log.Printf("ERROR: For %s: Login Failed! (%s)", r.URL.String(), err.Error())
 		http.Error(w, "Login Failed!", http.StatusInternalServerError)
 		return
 	}
@@ -145,9 +150,12 @@ func HandleLogoutGET(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
 	log.Printf("INFO: Redirected %s to %s", r.URL.String(), rule.GenLoginUrl(r.URL).String())
 }
 
-func HandleLoginGET(w http.ResponseWriter, r *http.Request) {
+func HandleLoginGET(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
 	s, _ := Html.FindString("login.html")
-	w.Write([]byte(s))
+	t := template.New("login")
+	t.Parse(s)
+	t.Execute(w, rule)
+
 	log.Printf("INFO: Send back login page for %s", r.URL.String())
 }
 

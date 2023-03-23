@@ -4,18 +4,75 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Proxauth Login</title>
+    <title>{{ .Title }} Login</title>
+    <link
+			href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+    <style>
+        body {
+            background-color: {{ .BackgroundColor }};
+            color: {{ .TextColor }};
+            display: grid;
+            place-items: center;
+            width: 100vw;
+            height: 100vh;
+            padding: 0;
+            margin: 0;
+            border: 0;
+            font-family: 'Ubuntu', sans-serif;
+            font-size: 1.5em;
+        }
+
+        input {
+            outline: none;
+            margin-top: 0.5em;
+            padding: 0.5em;
+            border-style: solid;
+            border-width: 1px 1px 1px 1px;
+            border-color: {{ .TextColor }};
+            font-size: 1em;
+            margin-bottom: 1.5em;
+            background-color: {{ .BackgroundColor }};
+            color: {{ .TextColor }};
+            width: calc(100% - 25px);
+        }
+        .button {
+            width: 100%;
+            text-decoration: none;
+            border: none;
+            background-color: {{ .PrimaryColor }};
+            {{ if eq .PrimaryColor .TextColor }}
+            color: {{ .BackgroundColor }};
+            {{ end }}
+            margin-bottom: 0;
+            margin-top: 1.5em;
+        }
+
+        form {
+            border-style: solid;
+            border-width: 2px 2px 2px 2px;
+            border-color: {{ .TextColor }};
+            border-radius: 1rem;
+            padding: 1.5em;
+            width: 50%;
+            max-width: 20em;
+            min-width: 10em;
+        }
+
+    </style>
 </head>
 <body>
     <form id="loginform" method="post">
-        <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username"><br>
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password"><br>
-        <input type="submit" value="Login" />
-        <div id="error"></div>
+        <label class="label" for="username">Username</label><br>
+        <input type="text" id="username" name="username" autocomplete="off"><br>
+        <label class="label" for="password">Password</label><br>
+        <input type="password" id="password" name="password" autocomplete="off"><br>
+        <label id="error"></label>
+        <input class=button type="submit" value="Login" />
     </form>
     <script>
+        const error = document.getElementById("error")
         document.getElementById("loginform").onsubmit = async event => {
             event.preventDefault();
             const data = new FormData(event.target);
@@ -23,19 +80,29 @@
             const password = data.get("password");
             const urlParams = new URLSearchParams(window.location.search);
             const redirectionUrl = urlParams.get("redirectedfrom")
+			
+            let response = {status: -1}
             try {
-			    await (await fetch(window.location.href, {
-					method: 'POST',
-					body: JSON.stringify({username, password})
-				})).json()
+                response = await fetch(window.location.href, {
+			    	method: 'POST',
+			    	body: JSON.stringify({username, password})
+			    })
+            } catch (e) {}
+
+
+            if (response.status === 200) {
+                error.innerHTML=""
                 if (redirectionUrl) {
                     window.location.replace(redirectionUrl);
                 } else {
                     window.location.replace("/")
                 }
-			} catch (e) {
-    			console.error(e);
-			}
+            } else if (response.status == 401) {
+                error.innerHTML="ERROR: Wrong username or password"
+            } else {
+                error.innerHTML=`ERROR: There was an unexspected error ${response.status}`
+            }
+            
         }
     </script>
 </body>

@@ -19,6 +19,10 @@ type Rule struct {
 	LogoutPath      string   `json:"logoutPath" yaml:"logoutPath"`
 	AllowedUsers    []string `json:"allowedUsers" yaml:"allowedUsers"`
 	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
+	BackgroundColor string   `json:"backgroundColor" yaml:"backgroundColor"`
+	TextColor       string   `json:"textColor" yaml:"textColor"`
+	PrimaryColor    string   `json:"primaryColor" yaml:"primaryColor"`
+	Title           string   `json:"title" yaml:"title"`
 }
 
 func (self *Rule) SetDefaults() {
@@ -48,6 +52,18 @@ func (self *Rule) SetDefaults() {
 	}
 	if self.AllowedUsers == nil {
 		self.AllowedUsers = []string{}
+	}
+	if self.BackgroundColor == "" {
+		self.BackgroundColor = "#000000"
+	}
+	if self.TextColor == "" {
+		self.TextColor = "#00FF00"
+	}
+	if self.PrimaryColor == "" {
+		self.PrimaryColor = "#00FF00"
+	}
+	if self.Title == "" {
+		self.Title = "Proxauth"
 	}
 }
 
