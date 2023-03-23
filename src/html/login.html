@@ -13,6 +13,7 @@
         <label for="password">Password:</label><br>
         <input type="password" id="password" name="password"><br>
         <input type="submit" value="Login" />
+        <div id="error"></div>
     </form>
     <script>
         document.getElementById("loginform").onsubmit = async event => {
@@ -29,6 +30,8 @@
 				})).json()
                 if (redirectionUrl) {
                     window.location.replace(redirectionUrl);
+                } else {
+                    window.location.replace("/")
                 }
 			} catch (e) {
     			console.error(e);

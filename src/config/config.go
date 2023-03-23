@@ -78,6 +78,10 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	for idx, _ := range config.Rules {
+		config.Rules[idx].SetDefaults()
+	}
+
 	config.ServerSecret = []byte(serverSecret)
 	config.Port = port
 	config.JWTExpirationDuration = jwtExpirationDuration

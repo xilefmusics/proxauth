@@ -66,6 +66,8 @@ func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) b
 	cookie, err := r.Cookie("proxauth-jwt-token")
 	if err != nil {
 		if rule.RedirectToLogin {
+			// TODO move to one place
+			// TODO add from path
 			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
 			return true
 		}

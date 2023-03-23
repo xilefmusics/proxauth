@@ -7,9 +7,8 @@ import (
 )
 
 type Rule struct {
-	// TODO set defaults
+	// TODO documentation & tests
 	// TODO Differentiate between API and User page
-	// TODO URL tools
 	FromHost        string   `json:"fromHost" yaml:"fromHost"`
 	FromPath        string   `json:"fromPath" yaml:"fromPath"`
 	ToScheme        string   `json:"toScheme" yaml:"toScheme"`
@@ -22,6 +21,33 @@ type Rule struct {
 	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
 }
 
+func (self *Rule) SetDefaults() {
+	if self.FromHost == "" {
+		self.FromHost = "*"
+	}
+	if self.FromPath == "" {
+		self.FromPath = "/"
+	}
+	if self.ToScheme == "" {
+		self.ToScheme = "http"
+	}
+	if self.ToHost == "" {
+		self.ToHost = "localhost"
+	}
+	if self.ToPath == "" {
+		self.ToPath = "/"
+	}
+	if self.LoginPath == "" {
+		self.LoginPath = "/login"
+	}
+	if self.LogoutPath == "" {
+		self.LogoutPath = "/logout"
+	}
+	if self.AllowedUsers == nil {
+		self.AllowedUsers = []string{}
+	}
+}
+
 func (self *Rule) IsLoginPath(path string) bool {
 	return self.RewritePath(path) == self.LoginPath
 }
@@ -31,6 +57,9 @@ func (self *Rule) IsLogoutPath(path string) bool {
 }
 
 func (self *Rule) Match(fromHost, fromPath string) bool {
+	if len(fromPath) == 0 || fromPath[len(fromPath)-1] != '/' {
+		fromPath += "/"
+	}
 	return (self.FromHost == fromHost || self.FromHost == "*") && strings.HasPrefix(fromPath, self.FromPath)
 }
 
@@ -44,11 +73,15 @@ func (self *Rule) IsUserPermitted(username string) bool {
 }
 
 func (self *Rule) LoginRequired() bool {
-	return self.LoginPath != ""
+	return len(self.AllowedUsers) > 0
 }
 
 func (self *Rule) RewritePath(path string) string {
 	return strings.Replace(path, self.FromPath, self.ToPath, 1)
+}
+
+func (self *Rule) ReverseRewritePath(path string) string {
+	return strings.Replace(path, self.ToPath, self.FromPath, 1)
 }
 
 func (self *Rule) RewriteRequest(r *http.Request) {
@@ -60,7 +93,7 @@ func (self *Rule) RewriteRequest(r *http.Request) {
 }
 
 func (self *Rule) GenLoginUrl(host string) string {
-	return fmt.Sprintf("%s%s", host, self.LoginPath)
+	return fmt.Sprintf("%s%s", host, self.ReverseRewritePath(self.LoginPath))
 }
 
 func Match(rules []Rule, fromHost, fromPath string) *Rule {
