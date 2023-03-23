@@ -20,9 +20,6 @@ var Config *config.Config
 var Html *packr.Box
 
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
-	// TODO Error Page
-	// TODO Check if API or not
-	// TODO Pretty login page
 	r.URL.Host = r.Host
 	rule := rule.Match(Config.Rules, r.URL.Host, r.URL.Path)
 	if rule == nil {
