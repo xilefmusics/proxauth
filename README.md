@@ -46,6 +46,7 @@ Optional a protection for this route can be created.
 |textColor|`#002200`|Color scheme used in html pages surfed by proxauth itself.|
 |primaryColor|`#002200`|Color scheme used in html pages surfed by proxauth itself.|
 |title|`Proxauth`|Title of the html pages surfed by proxauth itself.|
+|redirects|`empty`|A map of redirects.|
 
 ### Example
 

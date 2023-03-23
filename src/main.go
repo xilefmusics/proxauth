@@ -29,6 +29,10 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	}
 	r.URL.Scheme = rule.FromScheme
 
+	if Redirect(w, r, rule) {
+		return
+	}
+
 	if rule.LoginRequired() && rule.IsLoginPath(r.URL.Path) && r.Method == "POST" {
 		HandleLoginPOST(w, r)
 		return
@@ -50,6 +54,19 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 
 	Forward(w, r, rule)
 
+}
+
+func Redirect(w http.ResponseWriter, r *http.Request, rule *rule.Rule) bool {
+	for from, to := range rule.Redirects {
+		if r.URL.Path == from {
+			oldUrlString := r.URL.String()
+			r.URL.Path = to
+			http.Redirect(w, r, r.URL.String(), http.StatusSeeOther)
+			log.Printf("INFO: Redirected %s to %s", oldUrlString, r.URL.String())
+			return true
+		}
+	}
+	return false
 }
 
 func Forward(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {

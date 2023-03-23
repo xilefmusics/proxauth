@@ -8,21 +8,22 @@ import (
 )
 
 type Rule struct {
-	FromScheme      string   `json:"fromScheme" yaml:"fromScheme"`
-	FromHost        string   `json:"fromHost" yaml:"fromHost"`
-	FromPath        string   `json:"fromPath" yaml:"fromPath"`
-	ToScheme        string   `json:"toScheme" yaml:"toScheme"`
-	ToHost          string   `json:"toHost" yaml:"toHost"`
-	ToPort          int      `json:"toPort" yaml:"toPort"`
-	ToPath          string   `json:"toPath" yaml:"toPath"`
-	LoginPath       string   `json:"loginPath" yaml:"loginPath"`
-	LogoutPath      string   `json:"logoutPath" yaml:"logoutPath"`
-	AllowedUsers    []string `json:"allowedUsers" yaml:"allowedUsers"`
-	RedirectToLogin bool     `json:"redirectToLogin" yaml:"redirectToLogin"`
-	BackgroundColor string   `json:"backgroundColor" yaml:"backgroundColor"`
-	TextColor       string   `json:"textColor" yaml:"textColor"`
-	PrimaryColor    string   `json:"primaryColor" yaml:"primaryColor"`
-	Title           string   `json:"title" yaml:"title"`
+	FromScheme      string            `json:"fromScheme" yaml:"fromScheme"`
+	FromHost        string            `json:"fromHost" yaml:"fromHost"`
+	FromPath        string            `json:"fromPath" yaml:"fromPath"`
+	ToScheme        string            `json:"toScheme" yaml:"toScheme"`
+	ToHost          string            `json:"toHost" yaml:"toHost"`
+	ToPort          int               `json:"toPort" yaml:"toPort"`
+	ToPath          string            `json:"toPath" yaml:"toPath"`
+	LoginPath       string            `json:"loginPath" yaml:"loginPath"`
+	LogoutPath      string            `json:"logoutPath" yaml:"logoutPath"`
+	AllowedUsers    []string          `json:"allowedUsers" yaml:"allowedUsers"`
+	RedirectToLogin bool              `json:"redirectToLogin" yaml:"redirectToLogin"`
+	BackgroundColor string            `json:"backgroundColor" yaml:"backgroundColor"`
+	TextColor       string            `json:"textColor" yaml:"textColor"`
+	PrimaryColor    string            `json:"primaryColor" yaml:"primaryColor"`
+	Title           string            `json:"title" yaml:"title"`
+	Redirects       map[string]string `json:"redirects" yaml:"redirects"`
 }
 
 func (self *Rule) SetDefaults() {
@@ -64,6 +65,9 @@ func (self *Rule) SetDefaults() {
 	}
 	if self.Title == "" {
 		self.Title = "Proxauth"
+	}
+	if self.Redirects == nil {
+		self.Redirects = map[string]string{}
 	}
 }
 
