@@ -1,6 +1,33 @@
-# proxauth
+# Proxauth
 
-## Rules
+Proxauth is a user-based authentication proxy, which can be used to protect and rewrite different URLs and paths.
+It uses JWT tokens stored inside cookies to save the session state and is therefore completely stateless.
+
+## Configuration
+
+Proxauth is completely configurable through environment variables.
+
+|Variable|Default|Explanation|
+|-|-|-|
+|PORT|`8080`|The port inside the container, proxauth listenes at.|
+|SERVER_SECRET|`changeMe`|The secret which is used to encrypt the JWT tokens. Change that if you want to kill current sessions.|
+|JWT_EXPIRATION_DURATION|`24h`|Time span that defines how long the JWT tokens and therefore the sessions are valid (note that hour is the biggest unit)|
+|CONFIG_FILE|`/config/config.yaml`|Location of the config file which get's used if the `CONFIG` variable is not set.|
+|CONFIG||Configfile as string. If set the variable `CONFIG_FILE` gets ignored.|
+
+## Config File
+
+The config file can be passed as a file or directly as a string string.
+It is in YAML format and consists of two different sections, the users and the rules.
+
+### Users
+
+A user consists of a `username`, a SHA-256 encrypted `password` and a salt `salt`.
+
+### Rules
+
+A rule defines one mapping of an URL to an other.
+Optional a protection for this route can be created.
 
 |Param|Default|Explanation|
 |-|-|-|
@@ -19,3 +46,21 @@
 |textColor|`#002200`|Color scheme used in html pages surfed by proxauth itself.|
 |primaryColor|`#002200`|Color scheme used in html pages surfed by proxauth itself.|
 |title|`Proxauth`|Title of the html pages surfed by proxauth itself.|
+
+### Example
+
+This config file includes one user and one rule.
+This rule matches all of the incomming requests and forwards them to `localhost:8080`.
+The route is protected and only the one user has access to it.
+
+```yaml
+users:
+- username: <username>
+  password: sha-256(<password><salt>)
+  salt: <salt>
+
+rules:
+- toPort: 8080
+  allowedUsers: [<username>]
+  redirectToLogin: true
+```
