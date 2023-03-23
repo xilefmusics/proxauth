@@ -19,14 +19,14 @@ var Config *config.Config
 var Html *packr.Box
 
 func HandleRequest(w http.ResponseWriter, r *http.Request) {
+	r.URL.Host = r.Host
 	rule := rule.Match(Config.Rules, r.URL.Host, r.URL.Path)
 	if rule == nil {
 		log.Printf("ERROR: No rule found for host=\"%s\" path=\"%s\"", r.URL.Host, r.URL.Path)
 		http.Error(w, "404 Not found", http.StatusNotFound)
 		return
 	}
-
-	log.Printf("INFO: Handle Request method=%s clientHost=%s fromHost=%s fromPath=%s toHost=%s:%d toPath=%s", r.Method, r.RemoteAddr, r.URL.Host, r.URL.Path, rule.ToHost, rule.ToPort, rule.ToPath)
+	r.URL.Scheme = rule.FromScheme
 
 	if rule.LoginRequired() && rule.IsLoginPath(r.URL.Path) && r.Method == "POST" {
 		HandleLoginPOST(w, r)
@@ -47,6 +47,12 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	Forward(w, r, rule)
+
+}
+
+func Forward(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
+	oldUrlString := r.URL.String()
 	rule.RewriteRequest(r)
 
 	client := &http.Client{}
@@ -59,16 +65,15 @@ func HandleRequest(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(resp.StatusCode)
 	io.Copy(w, resp.Body)
 	resp.Body.Close()
-
+	log.Printf("INFO: Forwarded %s to %s", oldUrlString, r.URL.String())
 }
 
 func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) bool {
 	cookie, err := r.Cookie("proxauth-jwt-token")
 	if err != nil {
 		if rule.RedirectToLogin {
-			// TODO move to one place
-			// TODO add from path
-			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL).String(), r.URL.String()), http.StatusSeeOther)
+			log.Printf("INFO: Redirected %s to %s", r.URL.String(), rule.GenLoginUrl(r.URL).String())
 			return true
 		}
 		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
@@ -79,7 +84,8 @@ func HandleCheckLogin(w http.ResponseWriter, r *http.Request, rule *rule.Rule) b
 	username, err := login.VerifyJWT(cookie.Value, Config.ServerSecret)
 	if err != nil {
 		if rule.RedirectToLogin {
-			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL.Host), r.URL.String()), http.StatusSeeOther)
+			http.Redirect(w, r, fmt.Sprintf("%s?redirectedfrom=%s\n", rule.GenLoginUrl(r.URL).String(), r.URL.String()), http.StatusSeeOther)
+			log.Printf("INFO: Redirected %s to %s", r.URL.String(), rule.GenLoginUrl(r.URL).String())
 			return true
 		}
 		http.Error(w, "ERROR: Authentication failed!", http.StatusUnauthorized)
@@ -128,18 +134,21 @@ func HandleLoginPOST(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write(json)
+	log.Printf("INFO: Handled login of user %s for %s", username, r.URL.String())
 }
 
 func HandleLogoutGET(w http.ResponseWriter, r *http.Request, rule *rule.Rule) {
 	cookie := http.Cookie{Name: "proxauth-jwt-token", Value: "", Expires: time.Unix(0, 0)}
 	http.SetCookie(w, &cookie)
-	http.Redirect(w, r, rule.GenLoginUrl(r.URL.Host), http.StatusSeeOther)
+	log.Printf("INFO: Handled logout of user %s for %s", "?", r.URL.String())
+	http.Redirect(w, r, rule.GenLoginUrl(r.URL).String(), http.StatusSeeOther)
+	log.Printf("INFO: Redirected %s to %s", r.URL.String(), rule.GenLoginUrl(r.URL).String())
 }
 
 func HandleLoginGET(w http.ResponseWriter, r *http.Request) {
 	s, _ := Html.FindString("login.html")
 	w.Write([]byte(s))
-	return
+	log.Printf("INFO: Send back login page for %s", r.URL.String())
 }
 
 func main() {

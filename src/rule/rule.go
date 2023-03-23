@@ -3,12 +3,12 @@ package rule
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
 type Rule struct {
-	// TODO documentation & tests
-	// TODO Differentiate between API and User page
+	FromScheme      string   `json:"fromScheme" yaml:"fromScheme"`
 	FromHost        string   `json:"fromHost" yaml:"fromHost"`
 	FromPath        string   `json:"fromPath" yaml:"fromPath"`
 	ToScheme        string   `json:"toScheme" yaml:"toScheme"`
@@ -22,11 +22,14 @@ type Rule struct {
 }
 
 func (self *Rule) SetDefaults() {
+	if self.FromScheme == "" {
+		self.FromScheme = "http"
+	}
 	if self.FromHost == "" {
 		self.FromHost = "*"
 	}
-	if self.FromPath == "" {
-		self.FromPath = "/"
+	if len(self.FromPath) > 0 && self.FromPath[len(self.FromPath)-1] == '/' {
+		self.FromPath = self.FromPath[:len(self.FromPath)-1]
 	}
 	if self.ToScheme == "" {
 		self.ToScheme = "http"
@@ -34,8 +37,8 @@ func (self *Rule) SetDefaults() {
 	if self.ToHost == "" {
 		self.ToHost = "localhost"
 	}
-	if self.ToPath == "" {
-		self.ToPath = "/"
+	if len(self.ToPath) > 0 && self.ToPath[len(self.ToPath)-1] == '/' {
+		self.ToPath = self.ToPath[:len(self.ToPath)-1]
 	}
 	if self.LoginPath == "" {
 		self.LoginPath = "/login"
@@ -49,11 +52,11 @@ func (self *Rule) SetDefaults() {
 }
 
 func (self *Rule) IsLoginPath(path string) bool {
-	return self.RewritePath(path) == self.LoginPath
+	return path == self.FromPath+self.LoginPath
 }
 
 func (self *Rule) IsLogoutPath(path string) bool {
-	return self.RewritePath(path) == self.LogoutPath
+	return path == self.FromPath+self.LogoutPath
 }
 
 func (self *Rule) Match(fromHost, fromPath string) bool {
@@ -80,10 +83,6 @@ func (self *Rule) RewritePath(path string) string {
 	return strings.Replace(path, self.FromPath, self.ToPath, 1)
 }
 
-func (self *Rule) ReverseRewritePath(path string) string {
-	return strings.Replace(path, self.ToPath, self.FromPath, 1)
-}
-
 func (self *Rule) RewriteRequest(r *http.Request) {
 	r.Header.Set("X-Forwarded-For", r.RemoteAddr)
 	r.URL.Scheme = self.ToScheme
@@ -92,8 +91,10 @@ func (self *Rule) RewriteRequest(r *http.Request) {
 	r.RequestURI = ""
 }
 
-func (self *Rule) GenLoginUrl(host string) string {
-	return fmt.Sprintf("%s%s", host, self.ReverseRewritePath(self.LoginPath))
+func (self *Rule) GenLoginUrl(url *url.URL) *url.URL {
+	newUrl := *url
+	newUrl.Path = self.FromPath + self.LoginPath
+	return &newUrl
 }
 
 func Match(rules []Rule, fromHost, fromPath string) *Rule {
