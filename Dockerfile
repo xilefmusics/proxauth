@@ -1,7 +1,10 @@
 FROM golang:1.20rc3-alpine3.17 as Builder
 WORKDIR /go/src
 COPY ./src/ ./
-RUN go get . && CGO_ENABLED=0 go install
+RUN go install github.com/gobuffalo/packr/v2/packr2@latest && \
+    packr2 && \
+    go get . && \
+    CGO_ENABLED=0 go install
 
 FROM scratch
 COPY --from=Builder /go/bin/proxauth /
