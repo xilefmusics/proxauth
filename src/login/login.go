@@ -23,6 +23,7 @@ func ValidataUser(users []User, checkUser User) bool {
 	for _, u := range users {
 		if u.Username == checkUser.Username {
 			user = &u
+			break
 		}
 	}
 
