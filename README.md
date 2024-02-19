@@ -3,6 +3,21 @@
 Proxauth is a user-based authentication proxy, which can be used to protect and rewrite different URLs and paths.
 It uses JWT tokens stored inside cookies to save the session state and is therefore completely stateless.
 
+## Usage
+
+Since this app is only an proxy it needs an application behind it it can point to.
+An example on how to use it with an application can be seen in the [money-app](https://github.com/xilefmusics/money-app/blob/main/docker-compose.yaml).
+The docker images for this application are prebuild for all the releases on [DockerHub](https://hub.docker.com/repository/docker/xilefmusics/proxauth).
+If you want to test/develop the application you can start it using the following commands:
+
+```bash
+cd ./src
+go get .
+go run .
+```
+
+More detailed information can be found in the [Dockerfile](https://github.com/xilefmusics/proxauth/blob/main/Dockerfile).
+
 ## Configuration
 
 Proxauth is completely configurable through environment variables.
@@ -65,3 +80,7 @@ rules:
   allowedUsers: [<username>]
   redirectToLogin: true
 ```
+
+## License
+
+[![GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
